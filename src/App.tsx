@@ -169,10 +169,6 @@ export default function App() {
           <p>
             楽天レシピAPIを利用したキーワード＆カテゴリ検索アプリです。お好きな条件でレシピを探してみましょう。
           </p>
-          <p className="hint">
-            検索を実行するには環境変数 <code>VITE_RAKUTEN_APP_ID</code>{' '}
-            に楽天アプリIDを設定してください。
-          </p>
         </div>
       </header>
 
