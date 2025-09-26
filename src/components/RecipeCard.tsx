@@ -17,7 +17,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
         </div>
       )}
       <div className="recipe-content">
-        <div className="recipe-rank">#{recipe.rank}</div>
+        {recipe.rank ? <div className="recipe-rank">#{recipe.rank}</div> : null}
         <h3 className="recipe-title">
           <a href={recipe.recipeUrl} target="_blank" rel="noopener noreferrer">
             {recipe.recipeTitle}

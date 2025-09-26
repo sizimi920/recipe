@@ -1,5 +1,6 @@
 import type {
   CategoryResponse,
+  RecipeSearchMeta,
   RecipeSearchParams,
   RecipeSearchResponse,
   RecipeSearchResult,
@@ -56,31 +57,55 @@ export async function fetchCategories(signal?: AbortSignal) {
   return fetchJson<CategoryResponse>(url, signal);
 }
 
+function isSearchMeta(result: RecipeSearchResponse['result']): result is RecipeSearchMeta {
+  return !Array.isArray(result) && typeof result === 'object' && result !== null;
+}
+
 export async function searchRecipes(
   params: RecipeSearchParams,
   signal?: AbortSignal,
 ): Promise<RecipeSearchResult> {
+  const requestedHits = Number(params.hits ?? 30);
+  const requestedPage = Number(params.page ?? 1);
+
   const searchParams = new URLSearchParams({
     format: 'json',
     applicationId: getApplicationId(),
-    hits: String(params.hits ?? 30),
-    page: String(params.page ?? 1),
+    hits: String(requestedHits),
+    page: String(requestedPage),
   });
 
-  if (params.keyword) {
-    searchParams.set('keyword', params.keyword.trim());
+  const trimmedKeyword = params.keyword?.trim();
+  if (trimmedKeyword) {
+    searchParams.set('keyword', trimmedKeyword);
   }
+
   if (params.categoryId) {
     searchParams.set('categoryId', params.categoryId);
   }
 
-  const url = `${BASE_URL}/CategoryRanking/20170426?${searchParams.toString()}`;
+  const url = `${BASE_URL}/Search/20170426?${searchParams.toString()}`;
   const data = await fetchJson<RecipeSearchResponse>(url, signal);
 
+  const result = data.result;
+  const recipes = Array.isArray(result)
+    ? result
+    : Array.isArray(result?.recipe)
+    ? result.recipe
+    : [];
+
+  const page = isSearchMeta(result) && typeof result.page === 'number' ? result.page : requestedPage;
+  const hits = isSearchMeta(result) && typeof result.hits === 'number' ? result.hits : requestedHits;
+
+  const recipesWithRank = recipes.map((recipe, index) => ({
+    ...recipe,
+    rank: recipe.rank ?? String((page - 1) * hits + index + 1),
+  }));
+
   return {
-    recipes: data.result ?? [],
+    recipes: recipesWithRank,
     lastUpdate: data.lastUpdate,
-    hits: Number(params.hits ?? 30),
-    page: Number(params.page ?? 1),
+    hits,
+    page,
   };
 }
