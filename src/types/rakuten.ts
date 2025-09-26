@@ -23,7 +23,7 @@ export interface Recipe {
   recipeId: number;
   recipeTitle: string;
   recipeUrl: string;
-  rank: string;
+  rank?: string;
   foodImageUrl: string;
   mediumImageUrl: string;
   smallImageUrl: string;
@@ -41,8 +41,16 @@ export interface RecipeSearchParams {
   hits?: number;
 }
 
+export interface RecipeSearchMeta {
+  count: number;
+  page: number;
+  hits: number;
+  last: number;
+  recipe: Recipe[];
+}
+
 export interface RecipeSearchResponse {
-  result: Recipe[];
+  result: Recipe[] | RecipeSearchMeta;
   lastUpdate?: string;
 }
 
