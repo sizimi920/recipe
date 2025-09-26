@@ -68,6 +68,13 @@ export default function App() {
 
   const searchAbortController = useRef<AbortController | null>(null);
 
+  const fallbackCategoryIds = useMemo<string[]>(() => {
+    if (!categories?.large.length) {
+      return [];
+    }
+    return categories.large.map((category) => category.categoryId);
+  }, [categories]);
+
   const loadCategories = useCallback(() => {
     const controller = new AbortController();
     setCategoryLoading(true);
@@ -112,7 +119,10 @@ export default function App() {
     setSearchError(null);
 
     try {
-      const result = await searchRecipes(params, controller.signal);
+      const result = await searchRecipes(params, {
+        signal: controller.signal,
+        fallbackCategoryIds,
+      });
       setRecipes(result.recipes);
       setLastUpdate(result.lastUpdate);
       setHasSearched(true);
@@ -130,7 +140,7 @@ export default function App() {
       }
       setSearching(false);
     }
-  }, []);
+  }, [fallbackCategoryIds]);
 
   const handleReset = useCallback(() => {
     searchAbortController.current?.abort();

@@ -23,7 +23,7 @@ export interface Recipe {
   recipeId: number;
   recipeTitle: string;
   recipeUrl: string;
-  rank: string;
+  rank?: string;
   foodImageUrl: string;
   mediumImageUrl: string;
   smallImageUrl: string;

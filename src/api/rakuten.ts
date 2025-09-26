@@ -1,5 +1,6 @@
 import type {
   CategoryResponse,
+  Recipe,
   RecipeSearchParams,
   RecipeSearchResponse,
   RecipeSearchResult,
@@ -56,31 +57,139 @@ export async function fetchCategories(signal?: AbortSignal) {
   return fetchJson<CategoryResponse>(url, signal);
 }
 
-export async function searchRecipes(
-  params: RecipeSearchParams,
+interface RecipeSearchOptions {
+  signal?: AbortSignal;
+  fallbackCategoryIds?: string[];
+}
+
+function normalizeKeywordTerms(keyword?: string): string[] {
+  if (!keyword) {
+    return [];
+  }
+  return keyword
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((term) => term.toLocaleLowerCase());
+}
+
+function matchesAllTerms(recipe: Recipe, terms: string[]): boolean {
+  if (terms.length === 0) {
+    return true;
+  }
+
+  const searchableTexts: string[] = [];
+
+  if (recipe.recipeTitle) {
+    searchableTexts.push(recipe.recipeTitle);
+  }
+  if (recipe.recipeDescription) {
+    searchableTexts.push(recipe.recipeDescription);
+  }
+  if (Array.isArray(recipe.recipeMaterial) && recipe.recipeMaterial.length > 0) {
+    searchableTexts.push(recipe.recipeMaterial.join(' '));
+  }
+
+  if (searchableTexts.length === 0) {
+    return false;
+  }
+
+  const lowerCased = searchableTexts.map((text) => text.toLocaleLowerCase());
+  return terms.every((term) => lowerCased.some((text) => text.includes(term)));
+}
+
+async function fetchRankingForCategory(
+  categoryId: string,
   signal?: AbortSignal,
-): Promise<RecipeSearchResult> {
+): Promise<RecipeSearchResponse> {
   const searchParams = new URLSearchParams({
     format: 'json',
     applicationId: getApplicationId(),
-    hits: String(params.hits ?? 30),
-    page: String(params.page ?? 1),
+    categoryId,
   });
 
-  if (params.keyword) {
-    searchParams.set('keyword', params.keyword.trim());
-  }
+  const url = `${BASE_URL}/CategoryRanking/20170426?${searchParams.toString()}`;
+  return fetchJson<RecipeSearchResponse>(url, signal);
+}
+
+export async function searchRecipes(
+  params: RecipeSearchParams,
+  options?: RecipeSearchOptions,
+): Promise<RecipeSearchResult> {
+  const { signal, fallbackCategoryIds } = options ?? {};
+  const requestedHits = Number.isFinite(params.hits) ? Number(params.hits) : 30;
+  const sanitizedHits = requestedHits > 0 ? requestedHits : 30;
+
+  const categoryIds: string[] = [];
   if (params.categoryId) {
-    searchParams.set('categoryId', params.categoryId);
+    categoryIds.push(params.categoryId);
+  } else if (fallbackCategoryIds?.length) {
+    for (const id of fallbackCategoryIds) {
+      if (id && !categoryIds.includes(id)) {
+        categoryIds.push(id);
+      }
+      if (categoryIds.length >= 10) {
+        break;
+      }
+    }
   }
 
-  const url = `${BASE_URL}/CategoryRanking/20170426?${searchParams.toString()}`;
-  const data = await fetchJson<RecipeSearchResponse>(url, signal);
+  if (categoryIds.length === 0) {
+    categoryIds.push('10');
+  }
+
+  const keywordTerms = normalizeKeywordTerms(params.keyword);
+  const recipesById = new Map<number, Recipe>();
+  let newestUpdate: string | undefined;
+  let encounteredError: unknown = null;
+  let successfulFetch = false;
+
+  for (const categoryId of categoryIds) {
+    try {
+      const data = await fetchRankingForCategory(categoryId, signal);
+      successfulFetch = true;
+
+      if (data.lastUpdate) {
+        if (!newestUpdate || data.lastUpdate > newestUpdate) {
+          newestUpdate = data.lastUpdate;
+        }
+      }
+
+      const recipes = Array.isArray(data.result) ? data.result : [];
+      for (const recipe of recipes) {
+        if (!recipesById.has(recipe.recipeId)) {
+          recipesById.set(recipe.recipeId, recipe);
+        }
+      }
+    } catch (error) {
+      if ((error as Error)?.name === 'AbortError') {
+        throw error;
+      }
+      encounteredError = error;
+    }
+  }
+
+  if (!successfulFetch) {
+    if (encounteredError instanceof Error) {
+      throw encounteredError;
+    }
+    throw new Error('レシピの取得に失敗しました。');
+  }
+
+  const aggregatedRecipes = Array.from(recipesById.values());
+  const filteredRecipes = keywordTerms.length
+    ? aggregatedRecipes.filter((recipe) => matchesAllTerms(recipe, keywordTerms))
+    : aggregatedRecipes;
+
+  const limitedRecipes = filteredRecipes.slice(0, sanitizedHits).map((recipe, index) => ({
+    ...recipe,
+    rank: String(index + 1),
+  }));
 
   return {
-    recipes: data.result ?? [],
-    lastUpdate: data.lastUpdate,
-    hits: Number(params.hits ?? 30),
-    page: Number(params.page ?? 1),
+    recipes: limitedRecipes,
+    lastUpdate: newestUpdate,
+    hits: sanitizedHits,
+    page: 1,
   };
 }
