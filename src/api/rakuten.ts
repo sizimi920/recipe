@@ -59,137 +59,123 @@ export async function fetchCategories(signal?: AbortSignal) {
 
 interface RecipeSearchOptions {
   signal?: AbortSignal;
-  fallbackCategoryIds?: string[];
 }
 
-function normalizeKeywordTerms(keyword?: string): string[] {
-  if (!keyword) {
-    return [];
+function sanitizePositiveInteger(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return Math.floor(parsed);
   }
-  return keyword
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((term) => term.toLocaleLowerCase());
+  return fallback;
 }
 
-function matchesAllTerms(recipe: Recipe, terms: string[]): boolean {
-  if (terms.length === 0) {
-    return true;
+function optionalPositiveInteger(value: unknown): number | undefined {
+  const parsed = Number(value);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return Math.floor(parsed);
   }
-
-  const searchableTexts: string[] = [];
-
-  if (recipe.recipeTitle) {
-    searchableTexts.push(recipe.recipeTitle);
-  }
-  if (recipe.recipeDescription) {
-    searchableTexts.push(recipe.recipeDescription);
-  }
-  if (Array.isArray(recipe.recipeMaterial) && recipe.recipeMaterial.length > 0) {
-    searchableTexts.push(recipe.recipeMaterial.join(' '));
-  }
-
-  if (searchableTexts.length === 0) {
-    return false;
-  }
-
-  const lowerCased = searchableTexts.map((text) => text.toLocaleLowerCase());
-  return terms.every((term) => lowerCased.some((text) => text.includes(term)));
+  return undefined;
 }
 
-async function fetchRankingForCategory(
-  categoryId: string,
-  signal?: AbortSignal,
-): Promise<RecipeSearchResponse> {
-  const searchParams = new URLSearchParams({
-    format: 'json',
-    applicationId: getApplicationId(),
-    categoryId,
-  });
+function detectCategoryType(categoryId: string): 'large' | 'medium' | 'small' | undefined {
+  const segments = categoryId.split('-');
+  if (segments.length === 1) {
+    return 'large';
+  }
+  if (segments.length === 2) {
+    return 'medium';
+  }
+  if (segments.length >= 3) {
+    return 'small';
+  }
+  return undefined;
+}
 
-  const url = `${BASE_URL}/CategoryRanking/20170426?${searchParams.toString()}`;
-  return fetchJson<RecipeSearchResponse>(url, signal);
+interface NormalizedRecipeSearch {
+  recipes: Recipe[];
+  lastUpdate?: string;
+  hits?: number;
+  page?: number;
+  count?: number;
+}
+
+function normalizeRecipeList(result: RecipeSearchResponse): NormalizedRecipeSearch {
+  const baseLastUpdate = result.lastUpdate;
+  const payload = result.result;
+
+  if (!payload) {
+    return {
+      recipes: [],
+      lastUpdate: baseLastUpdate,
+      hits: undefined,
+      page: undefined,
+      count: undefined,
+    };
+  }
+
+  if (Array.isArray(payload)) {
+    return {
+      recipes: payload,
+      lastUpdate: baseLastUpdate,
+      hits: undefined,
+      page: undefined,
+      count: undefined,
+    };
+  }
+
+  const searchPayload = payload as RecipeSearchPayload;
+  const recipes = Array.isArray(searchPayload.recipes) ? searchPayload.recipes : [];
+  const countValue = Number(searchPayload.count);
+  return {
+    recipes,
+    lastUpdate: searchPayload.lastUpdate ?? baseLastUpdate,
+    hits: optionalPositiveInteger(searchPayload.hits),
+    page: optionalPositiveInteger(searchPayload.page),
+    count: Number.isFinite(countValue) && countValue >= 0 ? Math.floor(countValue) : undefined,
+  };
 }
 
 export async function searchRecipes(
   params: RecipeSearchParams,
   options?: RecipeSearchOptions,
 ): Promise<RecipeSearchResult> {
-  const { signal, fallbackCategoryIds } = options ?? {};
-  const requestedHits = Number.isFinite(params.hits) ? Number(params.hits) : 30;
-  const sanitizedHits = requestedHits > 0 ? requestedHits : 30;
+  const { signal } = options ?? {};
+  const sanitizedHits = sanitizePositiveInteger(params.hits, 30);
+  const sanitizedPage = sanitizePositiveInteger(params.page, 1);
 
-  const categoryIds: string[] = [];
+  const searchParams = new URLSearchParams({
+    format: 'json',
+    applicationId: getApplicationId(),
+    hits: String(sanitizedHits),
+    page: String(sanitizedPage),
+  });
+
+  if (params.keyword?.trim()) {
+    searchParams.set('keyword', params.keyword.trim());
+  }
+
   if (params.categoryId) {
-    categoryIds.push(params.categoryId);
-  } else if (fallbackCategoryIds?.length) {
-    for (const id of fallbackCategoryIds) {
-      if (id && !categoryIds.includes(id)) {
-        categoryIds.push(id);
-      }
-      if (categoryIds.length >= 10) {
-        break;
-      }
+    searchParams.set('categoryId', params.categoryId);
+    const categoryType = detectCategoryType(params.categoryId);
+    if (categoryType) {
+      searchParams.set('categoryType', categoryType);
     }
   }
 
-  if (categoryIds.length === 0) {
-    categoryIds.push('10');
-  }
+  const url = `${BASE_URL}/Search/20170426?${searchParams.toString()}`;
+  const data = await fetchJson<RecipeSearchResponse>(url, signal);
+  const normalized = normalizeRecipeList(data);
 
-  const keywordTerms = normalizeKeywordTerms(params.keyword);
-  const recipesById = new Map<number, Recipe>();
-  let newestUpdate: string | undefined;
-  let encounteredError: unknown = null;
-  let successfulFetch = false;
-
-  for (const categoryId of categoryIds) {
-    try {
-      const data = await fetchRankingForCategory(categoryId, signal);
-      successfulFetch = true;
-
-      if (data.lastUpdate) {
-        if (!newestUpdate || data.lastUpdate > newestUpdate) {
-          newestUpdate = data.lastUpdate;
-        }
-      }
-
-      const recipes = Array.isArray(data.result) ? data.result : [];
-      for (const recipe of recipes) {
-        if (!recipesById.has(recipe.recipeId)) {
-          recipesById.set(recipe.recipeId, recipe);
-        }
-      }
-    } catch (error) {
-      if ((error as Error)?.name === 'AbortError') {
-        throw error;
-      }
-      encounteredError = error;
-    }
-  }
-
-  if (!successfulFetch) {
-    if (encounteredError instanceof Error) {
-      throw encounteredError;
-    }
-    throw new Error('レシピの取得に失敗しました。');
-  }
-
-  const aggregatedRecipes = Array.from(recipesById.values());
-  const filteredRecipes = keywordTerms.length
-    ? aggregatedRecipes.filter((recipe) => matchesAllTerms(recipe, keywordTerms))
-    : aggregatedRecipes;
-
-  const limitedRecipes = filteredRecipes.slice(0, sanitizedHits).map((recipe, index) => ({
-    ...recipe,
-    rank: String(index + 1),
-  }));
+  const hits = Number.isFinite(normalized.hits)
+    ? Number(normalized.hits)
+    : sanitizedHits;
+  const page = Number.isFinite(normalized.page) ? Number(normalized.page) : sanitizedPage;
 
   return {
-    recipes: limitedRecipes,
-    lastUpdate: newestUpdate,
-    hits: sanitizedHits,
-    page: 1,
+    recipes: normalized.recipes,
+    lastUpdate: normalized.lastUpdate,
+    hits,
+    page,
+    count: normalized.count,
   };
 }
