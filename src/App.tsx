@@ -10,8 +10,27 @@ import type {
 } from './types/rakuten';
 import './App.css';
 
-function buildCategoryHierarchy(result: CategoryResponse['result']): CategoryHierarchy {
-  const mediumByLarge = (result.medium ?? []).reduce<CategoryHierarchy['mediumByLarge']>((acc, category) => {
+const creditHtml = `
+<!-- Rakuten Web Services Attribution Snippet FROM HERE -->
+<a href="https://webservice.rakuten.co.jp/" target="_blank"><img src="https://webservice.rakuten.co.jp/img/credit/200709/credit_31130.gif" border="0" alt="Rakuten Web Service Center" title="Rakuten Web Service Center" width="311" height="30"/></a>
+<!-- Rakuten Web Services Attribution Snippet TO HERE -->
+`;
+
+function RakutenCredit() {
+  return (
+    <div
+      aria-hidden // スクリーンリーダーにとってノイズなら付ける
+      dangerouslySetInnerHTML={{ __html: creditHtml }}
+    />
+  );
+}
+
+function buildCategoryHierarchy(
+  result: CategoryResponse['result']
+): CategoryHierarchy {
+  const mediumByLarge = (result.medium ?? []).reduce<
+    CategoryHierarchy['mediumByLarge']
+  >((acc, category) => {
     if (!acc[category.parentCategoryId]) {
       acc[category.parentCategoryId] = [];
     }
@@ -19,7 +38,9 @@ function buildCategoryHierarchy(result: CategoryResponse['result']): CategoryHie
     return acc;
   }, {});
 
-  const smallByMedium = (result.small ?? []).reduce<CategoryHierarchy['smallByMedium']>((acc, category) => {
+  const smallByMedium = (result.small ?? []).reduce<
+    CategoryHierarchy['smallByMedium']
+  >((acc, category) => {
     if (!acc[category.parentCategoryId]) {
       acc[category.parentCategoryId] = [];
     }
@@ -60,7 +81,10 @@ export default function App() {
         if ((error as Error)?.name === 'AbortError') {
           return;
         }
-        const message = error instanceof Error ? error.message : 'カテゴリの取得に失敗しました。';
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'カテゴリの取得に失敗しました。';
         setCategoryError(message);
         setCategories(null);
       })
@@ -76,39 +100,37 @@ export default function App() {
     return abortCleanup;
   }, [loadCategories]);
 
-  const handleSearch = useCallback(
-    async (params: RecipeSearchParams) => {
-      if (searchAbortController.current) {
-        searchAbortController.current.abort();
+  const handleSearch = useCallback(async (params: RecipeSearchParams) => {
+    if (searchAbortController.current) {
+      searchAbortController.current.abort();
+    }
+
+    const controller = new AbortController();
+    searchAbortController.current = controller;
+
+    setSearching(true);
+    setSearchError(null);
+
+    try {
+      const result = await searchRecipes(params, controller.signal);
+      setRecipes(result.recipes);
+      setLastUpdate(result.lastUpdate);
+      setHasSearched(true);
+    } catch (error) {
+      if ((error as Error)?.name === 'AbortError') {
+        return;
       }
-
-      const controller = new AbortController();
-      searchAbortController.current = controller;
-
-      setSearching(true);
-      setSearchError(null);
-
-      try {
-        const result = await searchRecipes(params, controller.signal);
-        setRecipes(result.recipes);
-        setLastUpdate(result.lastUpdate);
-        setHasSearched(true);
-      } catch (error) {
-        if ((error as Error)?.name === 'AbortError') {
-          return;
-        }
-        const message = error instanceof Error ? error.message : 'レシピの取得に失敗しました。';
-        setSearchError(message);
-        setRecipes([]);
-      } finally {
-        if (searchAbortController.current === controller) {
-          searchAbortController.current = null;
-        }
-        setSearching(false);
+      const message =
+        error instanceof Error ? error.message : 'レシピの取得に失敗しました。';
+      setSearchError(message);
+      setRecipes([]);
+    } finally {
+      if (searchAbortController.current === controller) {
+        searchAbortController.current = null;
       }
-    },
-    [],
-  );
+      setSearching(false);
+    }
+  }, []);
 
   const handleReset = useCallback(() => {
     searchAbortController.current?.abort();
@@ -142,9 +164,15 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-content">
+          <RakutenCredit />
           <h1>楽天レシピ検索</h1>
-          <p>楽天レシピAPIを利用したキーワード＆カテゴリ検索アプリです。お好きな条件でレシピを探してみましょう。</p>
-          <p className="hint">検索を実行するには環境変数 <code>VITE_RAKUTEN_APP_ID</code> に楽天アプリIDを設定してください。</p>
+          <p>
+            楽天レシピAPIを利用したキーワード＆カテゴリ検索アプリです。お好きな条件でレシピを探してみましょう。
+          </p>
+          <p className="hint">
+            検索を実行するには環境変数 <code>VITE_RAKUTEN_APP_ID</code>{' '}
+            に楽天アプリIDを設定してください。
+          </p>
         </div>
       </header>
 
@@ -159,7 +187,11 @@ export default function App() {
           {categoryError ? (
             <div className="alert alert-error" role="alert">
               <p>{categoryError}</p>
-              <button type="button" onClick={loadCategories} disabled={categoryLoading}>
+              <button
+                type="button"
+                onClick={loadCategories}
+                disabled={categoryLoading}
+              >
                 {categoryLoading ? '再取得中...' : 'カテゴリを再取得'}
               </button>
             </div>
@@ -175,10 +207,14 @@ export default function App() {
         <section className="result-panel">
           <div className="result-header">
             <h2>検索結果</h2>
-            {lastUpdate ? <span className="last-update">最終更新: {lastUpdate}</span> : null}
+            {lastUpdate ? (
+              <span className="last-update">最終更新: {lastUpdate}</span>
+            ) : null}
           </div>
 
-          {resultMessage ? <p className="result-message">{resultMessage}</p> : null}
+          {resultMessage ? (
+            <p className="result-message">{resultMessage}</p>
+          ) : null}
 
           <div className="recipe-grid">
             {recipes.map((recipe) => (
@@ -190,7 +226,14 @@ export default function App() {
 
       <footer className="app-footer">
         <small>
-          データ提供: <a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener noreferrer">楽天ウェブサービス</a>
+          データ提供:{' '}
+          <a
+            href="https://webservice.rakuten.co.jp/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            楽天ウェブサービス
+          </a>
         </small>
       </footer>
     </div>
