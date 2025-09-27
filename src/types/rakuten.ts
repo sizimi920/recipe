@@ -41,16 +41,8 @@ export interface RecipeSearchParams {
   hits?: number;
 }
 
-export interface RecipeSearchPayload {
-  count?: number;
-  page?: number;
-  hits?: number;
-  recipes?: Recipe[];
-  lastUpdate?: string;
-}
-
-export interface RecipeSearchResponse {
-  result: Recipe[] | RecipeSearchPayload;
+export interface CategoryRankingResponse {
+  result: Recipe[];
   lastUpdate?: string;
 }
 

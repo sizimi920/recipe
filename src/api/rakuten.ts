@@ -1,8 +1,8 @@
 import type {
+  CategoryRankingResponse,
   CategoryResponse,
   Recipe,
   RecipeSearchParams,
-  RecipeSearchResponse,
   RecipeSearchResult,
 } from '../types/rakuten';
 
@@ -59,7 +59,10 @@ export async function fetchCategories(signal?: AbortSignal) {
 
 interface RecipeSearchOptions {
   signal?: AbortSignal;
+  fallbackCategoryIds?: string[];
 }
+
+const MAX_FALLBACK_CATEGORY_FETCH = 12;
 
 function sanitizePositiveInteger(value: unknown, fallback: number): number {
   const parsed = Number(value);
@@ -69,113 +72,115 @@ function sanitizePositiveInteger(value: unknown, fallback: number): number {
   return fallback;
 }
 
-function optionalPositiveInteger(value: unknown): number | undefined {
-  const parsed = Number(value);
-  if (Number.isFinite(parsed) && parsed > 0) {
-    return Math.floor(parsed);
+function normaliseKeyword(keyword: string | undefined): string[] {
+  if (!keyword) {
+    return [];
   }
-  return undefined;
+
+  return keyword
+    .trim()
+    .replace(/[\s\u3000]+/g, ' ')
+    .split(' ')
+    .map((term) => term.toLowerCase())
+    .filter(Boolean);
 }
 
-function detectCategoryType(categoryId: string): 'large' | 'medium' | 'small' | undefined {
-  const segments = categoryId.split('-');
-  if (segments.length === 1) {
-    return 'large';
+function recipeMatchesKeyword(recipe: Recipe, terms: string[]): boolean {
+  if (!terms.length) {
+    return true;
   }
-  if (segments.length === 2) {
-    return 'medium';
-  }
-  if (segments.length >= 3) {
-    return 'small';
-  }
-  return undefined;
+
+  const haystack = [
+    recipe.recipeTitle,
+    recipe.recipeDescription,
+    ...(recipe.recipeMaterial ?? []),
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  return terms.every((term) => haystack.includes(term));
 }
 
-interface NormalizedRecipeSearch {
-  recipes: Recipe[];
-  lastUpdate?: string;
-  hits?: number;
-  page?: number;
-  count?: number;
+async function fetchCategoryRanking(
+  categoryId: string,
+  hits: number,
+  signal?: AbortSignal,
+): Promise<CategoryRankingResponse> {
+  const params = new URLSearchParams({
+    format: 'json',
+    applicationId: getApplicationId(),
+    categoryId,
+    hits: String(hits),
+  });
+
+  const url = `${BASE_URL}/CategoryRanking/20170426?${params.toString()}`;
+  return fetchJson<CategoryRankingResponse>(url, signal);
 }
 
-function normalizeRecipeList(result: RecipeSearchResponse): NormalizedRecipeSearch {
-  const baseLastUpdate = result.lastUpdate;
-  const payload = result.result;
+function deduplicateRecipes(recipes: Recipe[]): Recipe[] {
+  const seen = new Set<number>();
+  const unique: Recipe[] = [];
 
-  if (!payload) {
-    return {
-      recipes: [],
-      lastUpdate: baseLastUpdate,
-      hits: undefined,
-      page: undefined,
-      count: undefined,
-    };
+  for (const recipe of recipes) {
+    if (seen.has(recipe.recipeId)) {
+      continue;
+    }
+    seen.add(recipe.recipeId);
+    unique.push(recipe);
   }
 
-  if (Array.isArray(payload)) {
-    return {
-      recipes: payload,
-      lastUpdate: baseLastUpdate,
-      hits: undefined,
-      page: undefined,
-      count: undefined,
-    };
-  }
+  return unique;
+}
 
-  const searchPayload = payload as RecipeSearchPayload;
-  const recipes = Array.isArray(searchPayload.recipes) ? searchPayload.recipes : [];
-  const countValue = Number(searchPayload.count);
-  return {
-    recipes,
-    lastUpdate: searchPayload.lastUpdate ?? baseLastUpdate,
-    hits: optionalPositiveInteger(searchPayload.hits),
-    page: optionalPositiveInteger(searchPayload.page),
-    count: Number.isFinite(countValue) && countValue >= 0 ? Math.floor(countValue) : undefined,
-  };
+function applySequentialRank(recipes: Recipe[]): Recipe[] {
+  return recipes.map((recipe, index) => ({
+    ...recipe,
+    rank: recipe.rank ?? String(index + 1),
+  }));
 }
 
 export async function searchRecipes(
   params: RecipeSearchParams,
   options?: RecipeSearchOptions,
 ): Promise<RecipeSearchResult> {
-  const { signal } = options ?? {};
-  const sanitizedHits = sanitizePositiveInteger(params.hits, 30);
-  const sanitizedPage = sanitizePositiveInteger(params.page, 1);
+  const { signal, fallbackCategoryIds } = options ?? {};
+  const hits = sanitizePositiveInteger(params.hits, 30);
+  const keywords = normaliseKeyword(params.keyword);
+  const hasKeyword = keywords.length > 0;
+  const categoryId = params.categoryId;
 
-  const searchParams = new URLSearchParams({
-    format: 'json',
-    applicationId: getApplicationId(),
-    hits: String(sanitizedHits),
-    page: String(sanitizedPage),
-  });
+  const categoryIdsToFetch: string[] = [];
 
-  if (params.keyword?.trim()) {
-    searchParams.set('keyword', params.keyword.trim());
+  if (categoryId) {
+    categoryIdsToFetch.push(categoryId);
+  } else if (fallbackCategoryIds?.length) {
+    categoryIdsToFetch.push(
+      ...fallbackCategoryIds.slice(0, MAX_FALLBACK_CATEGORY_FETCH),
+    );
   }
 
-  if (params.categoryId) {
-    searchParams.set('categoryId', params.categoryId);
-    const categoryType = detectCategoryType(params.categoryId);
-    if (categoryType) {
-      searchParams.set('categoryType', categoryType);
-    }
+  if (!categoryIdsToFetch.length) {
+    throw new Error('検索に使用するカテゴリが見つかりませんでした。ページを再読み込みしてください。');
   }
 
-  const url = `${BASE_URL}/Search/20170426?${searchParams.toString()}`;
-  const data = await fetchJson<RecipeSearchResponse>(url, signal);
-  const normalized = normalizeRecipeList(data);
+  const rankingResults = await Promise.all(
+    categoryIdsToFetch.map((id) => fetchCategoryRanking(id, hits, signal)),
+  );
 
-  const hits = Number.isFinite(normalized.hits)
-    ? Number(normalized.hits)
-    : sanitizedHits;
-  const page = Number.isFinite(normalized.page) ? Number(normalized.page) : sanitizedPage;
+  const combinedRecipes = rankingResults.flatMap((result) => result.result ?? []);
+  const filteredRecipes = deduplicateRecipes(
+    hasKeyword ? combinedRecipes.filter((recipe) => recipeMatchesKeyword(recipe, keywords)) : combinedRecipes,
+  );
+
+  const limitedRecipes = applySequentialRank(filteredRecipes).slice(0, hits);
+
+  const lastUpdate = rankingResults.find((result) => result.lastUpdate)?.lastUpdate;
 
   return {
-    recipes: normalized.recipes,
-    lastUpdate: normalized.lastUpdate,
+    recipes: limitedRecipes,
+    lastUpdate,
     hits,
-    page,
-    count: normalized.count,
+    page: 1,
+    count: filteredRecipes.length,
   };
 }
