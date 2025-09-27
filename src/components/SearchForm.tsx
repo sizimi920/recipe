@@ -31,10 +31,39 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
     return categories.smallByMedium[selectedMedium] ?? [];
   }, [categories, selectedMedium]);
 
+  const composeCategoryId = (
+    parentId: string | undefined,
+    id: string | undefined
+  ): string | undefined => {
+    if (!id) {
+      return undefined;
+    }
+    if (id.includes('-')) {
+      return id;
+    }
+    if (!parentId) {
+      return id;
+    }
+    return parentId + '-' + id;
+  };
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedKeyword = keyword.trim();
-    const categoryId = selectedSmall || selectedMedium || selectedLarge || undefined;
+
+    const mediumCategory = mediumOptions.find((category) => category.categoryId === selectedMedium);
+    const smallCategory = smallOptions.find((category) => category.categoryId === selectedSmall);
+
+    const mediumCategoryId = mediumCategory
+      ? composeCategoryId(selectedLarge || mediumCategory.parentCategoryId, mediumCategory.categoryId)
+      : composeCategoryId(selectedLarge || undefined, selectedMedium || undefined);
+
+    const smallCategoryId = smallCategory
+      ? composeCategoryId(mediumCategoryId ?? smallCategory.parentCategoryId, smallCategory.categoryId)
+      : undefined;
+
+    const categoryId = smallCategoryId ?? mediumCategoryId ?? (selectedLarge || undefined);
+
     onSearch({
       keyword: trimmedKeyword ? trimmedKeyword : undefined,
       categoryId,

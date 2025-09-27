@@ -70,6 +70,7 @@ export async function searchRecipes(
 
   const searchParams = new URLSearchParams({
     format: 'json',
+    formatVersion: '2',
     applicationId: getApplicationId(),
     hits: String(requestedHits),
     page: String(requestedPage),
@@ -84,7 +85,7 @@ export async function searchRecipes(
     searchParams.set('categoryId', params.categoryId);
   }
 
-  const url = `${BASE_URL}/Search/20170426?${searchParams.toString()}`;
+  const url = `${BASE_URL}/CategoryRanking/20170426?${searchParams.toString()}`;
   const data = await fetchJson<RecipeSearchResponse>(url, signal);
 
   const result = data.result;
@@ -102,10 +103,28 @@ export async function searchRecipes(
     rank: recipe.rank ?? String((page - 1) * hits + index + 1),
   }));
 
+  const keywordLower = trimmedKeyword?.toLowerCase();
+  const filteredByKeyword = keywordLower
+    ? recipesWithRank.filter((recipe) => {
+        const title = recipe.recipeTitle?.toLowerCase() ?? '';
+        const description = recipe.recipeDescription?.toLowerCase() ?? '';
+        const materials = (recipe.recipeMaterial ?? [])
+          .join(' ')
+          .toLowerCase();
+        return (
+          title.includes(keywordLower) ||
+          description.includes(keywordLower) ||
+          materials.includes(keywordLower)
+        );
+      })
+    : recipesWithRank;
+
+  const limitedRecipes = filteredByKeyword.slice(0, requestedHits);
+
   return {
-    recipes: recipesWithRank,
+    recipes: limitedRecipes,
     lastUpdate: data.lastUpdate,
-    hits,
+    hits: limitedRecipes.length,
     page,
   };
 }
