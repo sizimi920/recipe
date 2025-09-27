@@ -121,8 +121,12 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
               {recipe.recipeMaterial.length > 3 && (
                 <li
                   className="more"
-                  title={`残り${recipe.recipeMaterial.length - 3}件の材料を見る`}
-                  aria-label={`残り${recipe.recipeMaterial.length - 3}件の材料を表示`}
+                  title={`残り${
+                    recipe.recipeMaterial.length - 3
+                  }件の材料を見る`}
+                  aria-label={`残り${
+                    recipe.recipeMaterial.length - 3
+                  }件の材料を表示`}
                 >
                   +{recipe.recipeMaterial.length - 3} 件
                 </li>

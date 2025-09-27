@@ -12,7 +12,7 @@ function getApplicationId(): string {
   const appId = import.meta.env.VITE_RAKUTEN_APP_ID;
   if (!appId) {
     throw new Error(
-      'RakutenアプリIDが設定されていません。プロジェクトルートに.envファイルを作成し、VITE_RAKUTEN_APP_IDを指定してください。',
+      'RakutenアプリIDが設定されていません。プロジェクトルートに.envファイルを作成し、VITE_RAKUTEN_APP_IDを指定してください。'
     );
   }
   return appId;
@@ -57,26 +57,31 @@ export async function fetchCategories(signal?: AbortSignal) {
   return fetchJson<CategoryResponse>(url, signal);
 }
 
-function isSearchMeta(result: RecipeSearchResponse['result']): result is RecipeSearchMeta {
-  return !Array.isArray(result) && typeof result === 'object' && result !== null;
+function isSearchMeta(
+  result: RecipeSearchResponse['result']
+): result is RecipeSearchMeta {
+  return (
+    !Array.isArray(result) && typeof result === 'object' && result !== null
+  );
 }
 
 export async function searchRecipes(
   params: RecipeSearchParams,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<RecipeSearchResult> {
-  const requestedHits = Number(params.hits ?? 30);
   const requestedPage = Number(params.page ?? 1);
+  const fixedHits = 4; // 楽天レシピカテゴリ別ランキングAPIは固定で4件返す
 
   if (!params.categoryId) {
-    throw new Error('レシピ検索にはカテゴリの指定が必要です。カテゴリを選択してから再度検索してください。');
+    throw new Error(
+      'レシピ検索にはカテゴリの指定が必要です。カテゴリを選択してから再度検索してください。'
+    );
   }
 
   const searchParams = new URLSearchParams({
     format: 'json',
     formatVersion: '2',
     applicationId: getApplicationId(),
-    hits: String(requestedHits),
     page: String(requestedPage),
   });
 
@@ -97,8 +102,11 @@ export async function searchRecipes(
     ? result.recipe
     : [];
 
-  const page = isSearchMeta(result) && typeof result.page === 'number' ? result.page : requestedPage;
-  const hits = isSearchMeta(result) && typeof result.hits === 'number' ? result.hits : requestedHits;
+  const page =
+    isSearchMeta(result) && typeof result.page === 'number'
+      ? result.page
+      : requestedPage;
+  const hits = fixedHits; // 固定で4件
 
   const recipesWithRank = recipes.map((recipe, index) => ({
     ...recipe,
@@ -110,9 +118,7 @@ export async function searchRecipes(
     ? recipesWithRank.filter((recipe) => {
         const title = recipe.recipeTitle?.toLowerCase() ?? '';
         const description = recipe.recipeDescription?.toLowerCase() ?? '';
-        const materials = (recipe.recipeMaterial ?? [])
-          .join(' ')
-          .toLowerCase();
+        const materials = (recipe.recipeMaterial ?? []).join(' ').toLowerCase();
         return (
           title.includes(keywordLower) ||
           description.includes(keywordLower) ||
@@ -121,7 +127,7 @@ export async function searchRecipes(
       })
     : recipesWithRank;
 
-  const limitedRecipes = filteredByKeyword.slice(0, requestedHits);
+  const limitedRecipes = filteredByKeyword.slice(0, fixedHits);
 
   return {
     recipes: limitedRecipes,

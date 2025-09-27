@@ -38,7 +38,6 @@ export interface RecipeSearchParams {
   keyword?: string;
   categoryId?: string;
   page?: number;
-  hits?: number;
 }
 
 export interface RecipeSearchMeta {

@@ -8,7 +8,12 @@ interface SearchFormProps {
   categories?: CategoryHierarchy | null;
 }
 
-export function SearchForm({ onSearch, onReset, loading, categories }: SearchFormProps) {
+export function SearchForm({
+  onSearch,
+  onReset,
+  loading,
+  categories,
+}: SearchFormProps) {
   const [keyword, setKeyword] = useState('');
   const [selectedLarge, setSelectedLarge] = useState('');
   const [selectedMedium, setSelectedMedium] = useState('');
@@ -45,19 +50,38 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
   };
 
   const selectedCategoryId = useMemo(() => {
-    const mediumCategory = mediumOptions.find((category) => category.categoryId === selectedMedium);
-    const smallCategory = smallOptions.find((category) => category.categoryId === selectedSmall);
+    const mediumCategory = mediumOptions.find(
+      (category) => category.categoryId === selectedMedium
+    );
+    const smallCategory = smallOptions.find(
+      (category) => category.categoryId === selectedSmall
+    );
 
     const mediumCategoryId = mediumCategory
-      ? composeCategoryId(selectedLarge || mediumCategory.parentCategoryId, mediumCategory.categoryId)
-      : composeCategoryId(selectedLarge || undefined, selectedMedium || undefined);
+      ? composeCategoryId(
+          selectedLarge || mediumCategory.parentCategoryId,
+          mediumCategory.categoryId
+        )
+      : composeCategoryId(
+          selectedLarge || undefined,
+          selectedMedium || undefined
+        );
 
     const smallCategoryId = smallCategory
-      ? composeCategoryId(mediumCategoryId ?? smallCategory.parentCategoryId, smallCategory.categoryId)
+      ? composeCategoryId(
+          mediumCategoryId ?? smallCategory.parentCategoryId,
+          smallCategory.categoryId
+        )
       : undefined;
 
     return smallCategoryId ?? mediumCategoryId ?? (selectedLarge || undefined);
-  }, [mediumOptions, selectedLarge, selectedMedium, selectedSmall, smallOptions]);
+  }, [
+    mediumOptions,
+    selectedLarge,
+    selectedMedium,
+    selectedSmall,
+    smallOptions,
+  ]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -70,7 +94,6 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
     onSearch({
       keyword: trimmedKeyword ? trimmedKeyword : undefined,
       categoryId: selectedCategoryId,
-      hits: 4,
     });
   };
 
@@ -87,31 +110,43 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
 
   return (
     <form className="search-form" onSubmit={handleSubmit}>
-      <div className="form-row">
+      {/* キーワード検索を最上部に配置 */}
+      <div className="keyword-search">
         <label className="form-field" htmlFor="keyword">
-          <span className="form-label">キーワード</span>
+          <span className="form-label">キーワード検索</span>
           <input
             id="keyword"
             name="keyword"
             type="text"
-            placeholder="カテゴリ選択後に入力できます"
+            className="search-input"
+            placeholder={
+              keywordDisabled
+                ? 'カテゴリを選択してください'
+                : '例: 簡単、時短、お弁当など'
+            }
             value={keyword}
             disabled={keywordDisabled || loading}
             onChange={(event) => setKeyword(event.target.value)}
           />
           <p className="form-helper">
             {keywordDisabled
-              ? 'カテゴリで絞り込んでからキーワードを入力できます'
-              : 'カテゴリ内をキーワードでさらに絞り込めます'}
+              ? '👆 まずはカテゴリを選んでください'
+              : '💡 材料名やレシピの特徴で検索できます'}
           </p>
         </label>
       </div>
 
-      <fieldset className="form-fieldset">
+      <fieldset
+        className="form-fieldset category-select"
+        aria-describedby="category-help"
+      >
         <legend>カテゴリで絞り込み</legend>
+        <div id="category-help" className="form-helper">
+          💡 料理の種類から詳細まで順番に選択してください
+        </div>
         <div className="form-row">
           <label className="form-field" htmlFor="largeCategory">
-            <span className="form-label">大分類</span>
+            <span className="form-label">🍳 料理の種類</span>
             <select
               id="largeCategory"
               value={selectedLarge}
@@ -133,7 +168,7 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
           </label>
 
           <label className="form-field" htmlFor="mediumCategory">
-            <span className="form-label">中分類</span>
+            <span className="form-label">🥘 調理法</span>
             <select
               id="mediumCategory"
               value={selectedMedium}
@@ -154,7 +189,7 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
           </label>
 
           <label className="form-field" htmlFor="smallCategory">
-            <span className="form-label">小分類</span>
+            <span className="form-label">🥗 詳細</span>
             <select
               id="smallCategory"
               value={selectedSmall}
@@ -180,7 +215,12 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
         >
           {loading ? '検索中...' : 'レシピを検索'}
         </button>
-        <button type="button" className="secondary" onClick={handleReset} disabled={loading}>
+        <button
+          type="button"
+          className="secondary"
+          onClick={handleReset}
+          disabled={loading}
+        >
           リセット
         </button>
       </div>
