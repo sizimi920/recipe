@@ -28,9 +28,24 @@ function RakutenCredit() {
 function buildCategoryHierarchy(
   result: CategoryResponse['result']
 ): CategoryHierarchy {
-  const mediumByLarge = (result.medium ?? []).reduce<
-    CategoryHierarchy['mediumByLarge']
-  >((acc, category) => {
+  const largeCategories = (result.large ?? []).map((category) => ({
+    ...category,
+    categoryId: String(category.categoryId),
+  }));
+
+  const mediumCategories = (result.medium ?? []).map((category) => ({
+    ...category,
+    categoryId: String(category.categoryId),
+    parentCategoryId: String(category.parentCategoryId),
+  }));
+
+  const smallCategories = (result.small ?? []).map((category) => ({
+    ...category,
+    categoryId: String(category.categoryId),
+    parentCategoryId: String(category.parentCategoryId),
+  }));
+
+  const mediumByLarge = mediumCategories.reduce<CategoryHierarchy['mediumByLarge']>((acc, category) => {
     if (!acc[category.parentCategoryId]) {
       acc[category.parentCategoryId] = [];
     }
@@ -38,9 +53,7 @@ function buildCategoryHierarchy(
     return acc;
   }, {});
 
-  const smallByMedium = (result.small ?? []).reduce<
-    CategoryHierarchy['smallByMedium']
-  >((acc, category) => {
+  const smallByMedium = smallCategories.reduce<CategoryHierarchy['smallByMedium']>((acc, category) => {
     if (!acc[category.parentCategoryId]) {
       acc[category.parentCategoryId] = [];
     }
@@ -49,7 +62,7 @@ function buildCategoryHierarchy(
   }, {});
 
   return {
-    large: result.large ?? [],
+    large: largeCategories,
     mediumByLarge,
     smallByMedium,
   };

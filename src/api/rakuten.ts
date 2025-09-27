@@ -68,6 +68,10 @@ export async function searchRecipes(
   const requestedHits = Number(params.hits ?? 30);
   const requestedPage = Number(params.page ?? 1);
 
+  if (!params.categoryId) {
+    throw new Error('レシピ検索にはカテゴリの指定が必要です。カテゴリを選択してから再度検索してください。');
+  }
+
   const searchParams = new URLSearchParams({
     format: 'json',
     formatVersion: '2',
@@ -81,9 +85,7 @@ export async function searchRecipes(
     searchParams.set('keyword', trimmedKeyword);
   }
 
-  if (params.categoryId) {
-    searchParams.set('categoryId', params.categoryId);
-  }
+  searchParams.set('categoryId', params.categoryId);
 
   const url = `${BASE_URL}/CategoryRanking/20170426?${searchParams.toString()}`;
   const data = await fetchJson<RecipeSearchResponse>(url, signal);
