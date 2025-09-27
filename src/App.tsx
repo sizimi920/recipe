@@ -19,12 +19,11 @@ const creditHtml = `
 function RakutenCredit() {
   return (
     <div
-      aria-hidden // スクリーンリーダーにとってノイズなら付ける
+      className="rakuten-credit"
       dangerouslySetInnerHTML={{ __html: creditHtml }}
     />
   );
 }
-
 function buildCategoryHierarchy(
   result: CategoryResponse['result']
 ): CategoryHierarchy {
@@ -45,7 +44,9 @@ function buildCategoryHierarchy(
     parentCategoryId: String(category.parentCategoryId),
   }));
 
-  const mediumByLarge = mediumCategories.reduce<CategoryHierarchy['mediumByLarge']>((acc, category) => {
+  const mediumByLarge = mediumCategories.reduce<
+    CategoryHierarchy['mediumByLarge']
+  >((acc, category) => {
     if (!acc[category.parentCategoryId]) {
       acc[category.parentCategoryId] = [];
     }
@@ -53,7 +54,9 @@ function buildCategoryHierarchy(
     return acc;
   }, {});
 
-  const smallByMedium = smallCategories.reduce<CategoryHierarchy['smallByMedium']>((acc, category) => {
+  const smallByMedium = smallCategories.reduce<
+    CategoryHierarchy['smallByMedium']
+  >((acc, category) => {
     if (!acc[category.parentCategoryId]) {
       acc[category.parentCategoryId] = [];
     }
@@ -223,11 +226,15 @@ export default function App() {
             ) : null}
           </div>
 
-          {resultMessage ? (
-            <p className="result-message">{resultMessage}</p>
-          ) : topRecipes.length > 0 ? (
-            <p className="result-note">選択したカテゴリのランキング上位4件を表示しています。</p>
-          ) : null}
+          <div aria-live="polite" aria-atomic="true">
+            {resultMessage ? (
+              <p className="result-message">{resultMessage}</p>
+            ) : topRecipes.length > 0 ? (
+              <p className="result-note">
+                選択したカテゴリのランキング上位4件を表示しています。
+              </p>
+            ) : null}
+          </div>
 
           <div className="recipe-grid">
             {topRecipes.map((recipe) => (
@@ -239,7 +246,7 @@ export default function App() {
 
       <footer className="app-footer">
         <small>
-          データ提供:{' '}
+          🏪 データ提供:{' '}
           <a
             href="https://webservice.rakuten.co.jp/"
             target="_blank"
