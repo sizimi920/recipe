@@ -8,14 +8,11 @@ interface SearchFormProps {
   categories?: CategoryHierarchy | null;
 }
 
-const HIT_OPTIONS = [10, 20, 30];
-
 export function SearchForm({ onSearch, onReset, loading, categories }: SearchFormProps) {
   const [keyword, setKeyword] = useState('');
   const [selectedLarge, setSelectedLarge] = useState('');
   const [selectedMedium, setSelectedMedium] = useState('');
   const [selectedSmall, setSelectedSmall] = useState('');
-  const [hits, setHits] = useState<number>(30);
 
   const mediumOptions = useMemo(() => {
     if (!categories || !selectedLarge) {
@@ -47,10 +44,7 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
     return parentId + '-' + id;
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmedKeyword = keyword.trim();
-
+  const selectedCategoryId = useMemo(() => {
     const mediumCategory = mediumOptions.find((category) => category.categoryId === selectedMedium);
     const smallCategory = smallOptions.find((category) => category.categoryId === selectedSmall);
 
@@ -62,12 +56,21 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
       ? composeCategoryId(mediumCategoryId ?? smallCategory.parentCategoryId, smallCategory.categoryId)
       : undefined;
 
-    const categoryId = smallCategoryId ?? mediumCategoryId ?? (selectedLarge || undefined);
+    return smallCategoryId ?? mediumCategoryId ?? (selectedLarge || undefined);
+  }, [mediumOptions, selectedLarge, selectedMedium, selectedSmall, smallOptions]);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedKeyword = keyword.trim();
+
+    if (!selectedCategoryId) {
+      return;
+    }
 
     onSearch({
       keyword: trimmedKeyword ? trimmedKeyword : undefined,
-      categoryId,
-      hits,
+      categoryId: selectedCategoryId,
+      hits: 4,
     });
   };
 
@@ -76,11 +79,11 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
     setSelectedLarge('');
     setSelectedMedium('');
     setSelectedSmall('');
-    setHits(30);
     onReset?.();
   };
 
   const categoriesReady = Boolean(categories?.large.length);
+  const keywordDisabled = !selectedCategoryId;
 
   return (
     <form className="search-form" onSubmit={handleSubmit}>
@@ -91,25 +94,16 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
             id="keyword"
             name="keyword"
             type="text"
-            placeholder="食材や料理名で検索"
+            placeholder="カテゴリ選択後に入力できます"
             value={keyword}
+            disabled={keywordDisabled || loading}
             onChange={(event) => setKeyword(event.target.value)}
           />
-        </label>
-        <label className="form-field" htmlFor="hits">
-          <span className="form-label">表示件数</span>
-          <select
-            id="hits"
-            name="hits"
-            value={hits}
-            onChange={(event) => setHits(Number(event.target.value))}
-          >
-            {HIT_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}件
-              </option>
-            ))}
-          </select>
+          <p className="form-helper">
+            {keywordDisabled
+              ? 'カテゴリで絞り込んでからキーワードを入力できます'
+              : 'カテゴリ内をキーワードでさらに絞り込めます'}
+          </p>
         </label>
       </div>
 
@@ -179,7 +173,11 @@ export function SearchForm({ onSearch, onReset, loading, categories }: SearchFor
       </fieldset>
 
       <div className="form-actions">
-        <button type="submit" className="primary" disabled={loading}>
+        <button
+          type="submit"
+          className="primary"
+          disabled={loading || !selectedCategoryId}
+        >
           {loading ? '検索中...' : 'レシピを検索'}
         </button>
         <button type="button" className="secondary" onClick={handleReset} disabled={loading}>

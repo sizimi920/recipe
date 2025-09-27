@@ -171,10 +171,23 @@
   border-radius: 1rem;
 }
 
+.result-note {
+  margin: 1.5rem 0 1rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
 .recipe-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
+  max-width: 520px;
+}
+
+.form-helper {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #64748b;
 }
 
 .recipe-card {

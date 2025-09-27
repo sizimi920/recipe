@@ -160,6 +160,8 @@ export default function App() {
     };
   }, []);
 
+  const topRecipes = useMemo(() => recipes.slice(0, 4), [recipes]);
+
   const resultMessage = useMemo(() => {
     if (searchError) {
       return searchError;
@@ -223,10 +225,12 @@ export default function App() {
 
           {resultMessage ? (
             <p className="result-message">{resultMessage}</p>
+          ) : topRecipes.length > 0 ? (
+            <p className="result-note">選択したカテゴリのランキング上位4件を表示しています。</p>
           ) : null}
 
           <div className="recipe-grid">
-            {recipes.map((recipe) => (
+            {topRecipes.map((recipe) => (
               <RecipeCard key={recipe.recipeId} recipe={recipe} />
             ))}
           </div>
