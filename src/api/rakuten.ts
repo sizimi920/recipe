@@ -1,7 +1,9 @@
 import type {
   CategoryRankingResponse,
   CategoryResponse,
+
   Recipe,
+
   RecipeSearchParams,
   RecipeSearchResult,
 } from '../types/rakuten';
@@ -56,6 +58,7 @@ export async function fetchCategories(signal?: AbortSignal) {
   const url = `${BASE_URL}/CategoryList/20170426?${params.toString()}`;
   return fetchJson<CategoryResponse>(url, signal);
 }
+
 
 interface RecipeSearchOptions {
   signal?: AbortSignal;
@@ -176,11 +179,29 @@ export async function searchRecipes(
 
   const lastUpdate = rankingResults.find((result) => result.lastUpdate)?.lastUpdate;
 
+
+  const result = data.result;
+  const recipes = Array.isArray(result)
+    ? result
+    : Array.isArray(result?.recipe)
+    ? result.recipe
+    : [];
+
+  const page = isSearchMeta(result) && typeof result.page === 'number' ? result.page : requestedPage;
+  const hits = isSearchMeta(result) && typeof result.hits === 'number' ? result.hits : requestedHits;
+
+  const recipesWithRank = recipes.map((recipe, index) => ({
+    ...recipe,
+    rank: recipe.rank ?? String((page - 1) * hits + index + 1),
+  }));
+
   return {
+
     recipes: limitedRecipes,
     lastUpdate,
     hits,
     page: 1,
     count: filteredRecipes.length,
+
   };
 }

@@ -41,8 +41,10 @@ export interface RecipeSearchParams {
   hits?: number;
 }
 
+
 export interface CategoryRankingResponse {
   result: Recipe[];
+
   lastUpdate?: string;
 }
 
