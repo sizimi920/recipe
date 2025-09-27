@@ -129,6 +129,7 @@
   border: 2px solid #e2e8f0;
   border-radius: 0.75rem;
   width: 100%;
+  box-sizing: border-box;
   transition: all 0.2s ease;
 }
 
@@ -182,6 +183,7 @@
   background-color: white;
   border-radius: 0.5rem;
   min-width: 120px;
+  box-sizing: border-box;
 }
 
 .form-field select:focus {
@@ -478,6 +480,12 @@
   .search-panel {
     position: relative;
     margin-bottom: 1rem;
+    padding: 1.5rem;
+  }
+
+  .keyword-search {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
   }
 
   .result-panel {
