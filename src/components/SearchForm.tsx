@@ -121,7 +121,7 @@ export function SearchForm({
             className="search-input"
             placeholder={
               keywordDisabled
-                ? 'カテゴリを選択してください'
+                ? 'まずカテゴリを選択'
                 : '例: 簡単、時短、お弁当など'
             }
             value={keyword}

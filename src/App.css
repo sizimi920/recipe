@@ -133,6 +133,11 @@
   transition: all 0.2s ease;
 }
 
+.search-input::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
 .search-input:focus {
   border-color: #7c3aed;
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
@@ -486,6 +491,11 @@
   .keyword-search {
     margin-bottom: 1.5rem;
     padding: 1rem;
+  }
+
+  .search-input {
+    font-size: 1rem;
+    padding: 0.75rem 0.85rem;
   }
 
   .result-panel {
