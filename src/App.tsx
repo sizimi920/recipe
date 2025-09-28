@@ -72,6 +72,40 @@ function buildCategoryHierarchy(
 }
 
 export default function App() {
+  // ---------------- Theme (Light / Dark) ----------------
+  const THEME_KEY = 'app-theme';
+  const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light';
+    const stored = localStorage.getItem(THEME_KEY) as 'light' | 'dark' | null;
+    return stored ?? (prefersDark ? 'dark' : 'light');
+  });
+
+  // Apply to :root attribute
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  // Listen system preference changes
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const listener = (e: MediaQueryListEvent) => {
+      // Only auto-update if user hasn't manually toggled (i.e., storage not set explicitly)
+      const stored = localStorage.getItem(THEME_KEY);
+      if (!stored) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    };
+    mq.addEventListener('change', listener);
+    return () => mq.removeEventListener('change', listener);
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((t) => (t === 'light' ? 'dark' : 'light'));
+  }, []);
+
   const [categories, setCategories] = useState<CategoryHierarchy | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [categoryLoading, setCategoryLoading] = useState(false);
@@ -181,6 +215,15 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
+        <button
+          type="button"
+          className="theme-toggle"
+          aria-label={theme === 'light' ? 'ダークモードに切り替え' : 'ライトモードに切り替え'}
+          title={theme === 'light' ? 'ダークモードに切り替え' : 'ライトモードに切り替え'}
+          onClick={toggleTheme}
+        >
+          {theme === 'light' ? '🌙' : '☀️'}
+        </button>
         <div className="header-content">
           <RakutenCredit />
           <h1>楽天レシピ検索</h1>
