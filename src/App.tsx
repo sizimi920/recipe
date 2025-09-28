@@ -119,6 +119,18 @@ export default function App() {
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
+  // ---------------- SEO & Dynamic Title ----------------
+  useEffect(() => {
+    const baseTitle = '楽天レシピ検索 - カテゴリ・キーワードで簡単レシピ検索';
+    if (recipes.length > 0) {
+      document.title = `${recipes.length}件のレシピを表示中 | ${baseTitle}`;
+    } else if (hasSearched && !searching) {
+      document.title = `レシピが見つかりませんでした | ${baseTitle}`;
+    } else {
+      document.title = baseTitle;
+    }
+  }, [recipes.length, hasSearched, searching]);
+
   const searchAbortController = useRef<AbortController | null>(null);
 
   const loadCategories = useCallback(() => {
@@ -306,7 +318,9 @@ export default function App() {
               ))
             ) : hasSearched && !searching && !searchError ? (
               <div className="empty-state">
-                <span className="empty-state-icon" aria-hidden="true">🍽️</span>
+                <span className="empty-state-icon" aria-hidden="true">
+                  🍽️
+                </span>
                 <h3>レシピが見つかりませんでした</h3>
                 <p>キーワードやカテゴリを変更して再検索してみてください</p>
               </div>

@@ -103,9 +103,11 @@ export function SearchForm({
     setSelectedMedium('');
     setSelectedSmall('');
     onReset?.();
-    // Reset後に大分類にフォーカス
+    // Reset後に大分類にフォーカス（カテゴリが最上部にあるため）
     setTimeout(() => {
-      const largeSelect = document.getElementById('largeCategory') as HTMLSelectElement;
+      const largeSelect = document.getElementById(
+        'largeCategory'
+      ) as HTMLSelectElement;
       largeSelect?.focus();
     }, 100);
   };
@@ -115,31 +117,7 @@ export function SearchForm({
 
   return (
     <form className="search-form" onSubmit={handleSubmit}>
-      {/* キーワード検索を最上部に配置 */}
-      <div className="keyword-search">
-        <label className="form-field" htmlFor="keyword">
-          <span className="form-label">キーワード検索</span>
-          <input
-            id="keyword"
-            name="keyword"
-            type="text"
-            className="search-input"
-            placeholder={
-              keywordDisabled ? 'まずカテゴリを選択' : '例: 簡単・時短・弁当'
-            }
-            title="例: 簡単、時短、お弁当など"
-            value={keyword}
-            disabled={keywordDisabled || loading}
-            onChange={(event) => setKeyword(event.target.value)}
-          />
-          <p className="form-helper">
-            {keywordDisabled
-              ? '👆 まずはカテゴリを選んでください'
-              : '💡 材料名やレシピの特徴で検索できます'}
-          </p>
-        </label>
-      </div>
-
+      {/* カテゴリで絞り込みを最上部に配置 */}
       <fieldset
         className="form-fieldset category-select"
         aria-describedby="category-help"
@@ -210,6 +188,31 @@ export function SearchForm({
           </label>
         </div>
       </fieldset>
+
+      {/* キーワード検索を下部に配置 */}
+      <div className="keyword-search">
+        <label className="form-field" htmlFor="keyword">
+          <span className="form-label">キーワード検索</span>
+          <input
+            id="keyword"
+            name="keyword"
+            type="text"
+            className="search-input"
+            placeholder={
+              keywordDisabled ? 'まずカテゴリを選択' : '例: 簡単・時短・弁当'
+            }
+            title="例: 簡単、時短、お弁当など"
+            value={keyword}
+            disabled={keywordDisabled || loading}
+            onChange={(event) => setKeyword(event.target.value)}
+          />
+          <p className="form-helper">
+            {keywordDisabled
+              ? '👆 まずはカテゴリを選んでください'
+              : '💡 材料名やレシピの特徴で検索できます'}
+          </p>
+        </label>
+      </div>
 
       <div className="form-actions">
         <button
