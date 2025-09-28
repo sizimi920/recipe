@@ -103,6 +103,11 @@ export function SearchForm({
     setSelectedMedium('');
     setSelectedSmall('');
     onReset?.();
+    // Reset後に大分類にフォーカス
+    setTimeout(() => {
+      const largeSelect = document.getElementById('largeCategory') as HTMLSelectElement;
+      largeSelect?.focus();
+    }, 100);
   };
 
   const categoriesReady = Boolean(categories?.large.length);
@@ -120,9 +125,7 @@ export function SearchForm({
             type="text"
             className="search-input"
             placeholder={
-              keywordDisabled
-                ? 'まずカテゴリを選択'
-                : '例: 簡単・時短・弁当'
+              keywordDisabled ? 'まずカテゴリを選択' : '例: 簡単・時短・弁当'
             }
             title="例: 簡単、時短、お弁当など"
             value={keyword}

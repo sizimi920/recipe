@@ -74,7 +74,10 @@ function buildCategoryHierarchy(
 export default function App() {
   // ---------------- Theme (Light / Dark) ----------------
   const THEME_KEY = 'app-theme';
-  const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const prefersDark =
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches;
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window === 'undefined') return 'light';
     const stored = localStorage.getItem(THEME_KEY) as 'light' | 'dark' | null;
@@ -204,22 +207,38 @@ export default function App() {
       return searchError;
     }
     if (searching) {
-      return 'レシピを検索しています...';
+      return (
+        <>
+          <span className="loading-spinner" aria-hidden="true"></span>
+          レシピを検索しています...
+        </>
+      );
     }
     if (hasSearched && recipes.length === 0) {
-      return '条件に一致するレシピが見つかりませんでした。キーワードやカテゴリを変更して再検索してください。';
+      return null; // Empty state will be shown separately
     }
     return '';
   }, [hasSearched, recipes.length, searchError, searching]);
 
   return (
     <div className="app">
+      <a href="#main-content" className="skip-link">
+        メインコンテンツにスキップ
+      </a>
       <header className="app-header">
         <button
           type="button"
           className="theme-toggle"
-          aria-label={theme === 'light' ? 'ダークモードに切り替え' : 'ライトモードに切り替え'}
-          title={theme === 'light' ? 'ダークモードに切り替え' : 'ライトモードに切り替え'}
+          aria-label={
+            theme === 'light'
+              ? 'ダークモードに切り替え'
+              : 'ライトモードに切り替え'
+          }
+          title={
+            theme === 'light'
+              ? 'ダークモードに切り替え'
+              : 'ライトモードに切り替え'
+          }
           onClick={toggleTheme}
         >
           {theme === 'light' ? '🌙' : '☀️'}
@@ -233,11 +252,12 @@ export default function App() {
         </div>
       </header>
 
-      <main className="app-main">
+      <main id="main-content" className="app-main">
         <section className="search-panel">
           <h2>検索条件</h2>
           {categoryLoading && !categoryError ? (
             <div className="alert alert-info" role="status">
+              <span className="loading-spinner" aria-hidden="true"></span>
               カテゴリを読み込んでいます...
             </div>
           ) : null}
@@ -280,9 +300,17 @@ export default function App() {
           </div>
 
           <div className="recipe-grid">
-            {topRecipes.map((recipe) => (
-              <RecipeCard key={recipe.recipeId} recipe={recipe} />
-            ))}
+            {topRecipes.length > 0 ? (
+              topRecipes.map((recipe) => (
+                <RecipeCard key={recipe.recipeId} recipe={recipe} />
+              ))
+            ) : hasSearched && !searching && !searchError ? (
+              <div className="empty-state">
+                <span className="empty-state-icon" aria-hidden="true">🍽️</span>
+                <h3>レシピが見つかりませんでした</h3>
+                <p>キーワードやカテゴリを変更して再検索してみてください</p>
+              </div>
+            ) : null}
           </div>
         </section>
       </main>
