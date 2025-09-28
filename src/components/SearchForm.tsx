@@ -122,8 +122,9 @@ export function SearchForm({
             placeholder={
               keywordDisabled
                 ? 'まずカテゴリを選択'
-                : '例: 簡単、時短、お弁当など'
+                : '例: 簡単・時短・弁当'
             }
+            title="例: 簡単、時短、お弁当など"
             value={keyword}
             disabled={keywordDisabled || loading}
             onChange={(event) => setKeyword(event.target.value)}
