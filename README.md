@@ -2,28 +2,7 @@
 
 React + TypeScript + Vite で構築した、楽天レシピAPI (CategoryList / CategoryRanking) 対応の検索アプリです。カテゴリ階層と任意のキーワードでレシピランキング（上位4件固定）を取得し、材料・調理時間・費用目安などを閲覧できます。
 
-## セットアップ
-
-1. 依存パッケージをインストールします。
-
-   ```bash
-   npm install
-   ```
-
-2. 環境変数を設定します。`.env.sample` をコピーして `.env` を作成し、[楽天ウェブサービス](https://webservice.rakuten.co.jp/)から取得したアプリIDを設定してください。
-
-   ```bash
-   cp .env.sample .env
-   # .env を編集して VITE_RAKUTEN_APP_ID=xxxxxx を入力
-   ```
-
-3. 開発サーバーを起動します。
-
-   ```bash
-   npm run dev
-   ```
-
-   ブラウザで `http://localhost:5173` を開くとアプリを確認できます。
+<!-- セットアップ手順は不要になったため削除しました。開発環境構築は一般的な Vite + React 流儀に従います。 -->
 
 ## 主な機能
 
@@ -49,7 +28,7 @@ React + TypeScript + Vite で構築した、楽天レシピAPI (CategoryList / C
 | ------ | ---- | ---- |
 | `VITE_RAKUTEN_APP_ID` | ✅ | 楽天ウェブサービスで発行したアプリID |
 
-`.env.sample` を参考に `.env` を作成してください。
+`.env.sample` に例示があります。開発/ビルド時に `VITE_RAKUTEN_APP_ID` が未設定の場合、API 呼び出しは失敗します。
 
 ## 開発メモ / 実装上の注意
 
